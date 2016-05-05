@@ -9,7 +9,12 @@ import github3
 app = Flask(__name__)
 gh = login('nixbot')
 
-nicks = {'kragniz'}
+nicks = {
+    'kragniz': [
+        'README.md',
+        'pkgs/games/hedgewars/*',
+    ]
+}
 
 class Nixbot:
     def __init__(self, webhookdata):
@@ -18,7 +23,11 @@ class Nixbot:
         self.message = self.get_comment_body()
         self.user = self.get_comment_user()
 
-        self.repo_owner, self.repo, self.pr_number = self.get_origin()
+        repo_owner, repo, pr_number = self.get_origin()
+        self.issue = gh.issue(repo_owner, repo, pr_number)
+        self.pull_request = gh.pull_request(repo_owner, repo, pr_number)
+
+        self.failed_files = []
 
     def get_comment_body(self):
         return self.data.get('comment').get('body')
@@ -31,19 +40,37 @@ class Nixbot:
         n = self.data.get('issue').get('number')
         return owner, repository, n
 
-    def get_issue(self):
-        issue = gh.issue(self.repo_owner, self.repo, self.pr_number)
-        return issue
+    def check_authorized_for_file(self, user, filename):
+        for path in nicks.get(user):
+            if path.endswith('*'):
+                if filename.startswith(path[:-1]):
+                    return True
+            else:
+                if path == filename:
+                    return True
+        return False
 
-    def get_pull_request(self):
-        issue = gh.issue(self.repo_owner, self.repo, self.pr_number)
-        return issue
+    def check_authorized_for_pull_request(self):
+        for file in self.pull_request.iter_files():
+            if not self.check_authorized_for_file(self.user, file.filename):
+                self.failed_files.append(file.filename)
+        return len(self.failed_files) == 0
+
+    def comment(self, message):
+        self.issue.create_comment(message)
 
     def process(self):
         if self.user in nicks:
-            if '@nixbot hello' in self.message:
-                pr = self.get_issue()
-                pr.create_comment('hi there @{}'.format(self.user))
+            if '@nixbot merge this please' in self.message:
+                if self.check_authorized_for_pull_request():
+                    self.comment('Okay @{}! (๑•͈ᴗ•͈)'.format(self.user))
+                else:
+                    self.comment('''I'm sorry @{name}, I can't merge this for you! :( You're not allowed to change these files:
+
+```
+{files}
+```'''.format(name=self.user,
+                      files='\n'.join(self.failed_files)))
 
 @app.before_request
 def limit_remote_addr():
