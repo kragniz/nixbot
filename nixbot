@@ -64,13 +64,17 @@ class Nixbot:
             if '@nixbot merge this please' in self.message:
                 if self.check_authorized_for_pull_request():
                     self.comment('Okay @{}! (๑•͈ᴗ•͈)'.format(self.user))
+                    self.pull_request.merge()
+                    app.logger.info('Merged pull request {} by the request '
+                                    'of {}'.format(self.issue,
+                                                   self.user))
                 else:
                     self.comment('''I'm sorry @{name}, I can't merge this for you! :( You're not allowed to change these files:
 
 ```
 {files}
 ```'''.format(name=self.user,
-                      files='\n'.join(self.failed_files)))
+              files='\n'.join(self.failed_files)))
 
 @app.before_request
 def limit_remote_addr():
