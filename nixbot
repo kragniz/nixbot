@@ -1,17 +1,27 @@
 #!/usr/bin/env python3
 
-from flask import Flask, request
+import json
+
+from flask import Flask, request, abort
 import github3
 
 app = Flask(__name__)
 
+def get_comment(data):
+    print(data)
+
+@app.before_request
+def limit_remote_addr():
+    if not request.remote_addr.startswith('192.30.252'):
+        abort(403)
+
 @app.route('/', methods=['GET', 'POST'])
 def handler():
     if request.method == "POST":
-        print(request)
+        get_comment(json.loads(request.data.decode('utf-8')))
         return 'yes'
     else:
         return 'hey'
 
 if __name__ == '__main__':
-    app.run(port=27014, host='0.0.0.0', debug=True)
+    app.run(port=9001, host='0.0.0.0', debug=True)
