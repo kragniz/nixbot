@@ -9,12 +9,8 @@ import github3
 app = Flask(__name__)
 gh = login('nixbot')
 
-nicks = {
-    'kragniz': [
-        'README.md',
-        'pkgs/games/hedgewars/*',
-    ]
-}
+with open('maintainer-paths.json') as f:
+    maintainers = json.load(f)
 
 class Nixbot:
     def __init__(self, webhookdata):
@@ -41,7 +37,7 @@ class Nixbot:
         return owner, repository, n
 
     def check_authorized_for_file(self, user, filename):
-        for path in nicks.get(user):
+        for path in maintainers.get(user):
             if path.endswith('*'):
                 if filename.startswith(path[:-1]):
                     return True
@@ -60,7 +56,7 @@ class Nixbot:
         self.issue.create_comment(message)
 
     def process(self):
-        if self.user in nicks:
+        if self.user in maintainers:
             if '@nixbot merge this please' in self.message:
                 if self.check_authorized_for_pull_request():
                     self.comment('Okay @{}! (๑•͈ᴗ•͈)'.format(self.user))
