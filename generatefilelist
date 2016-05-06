@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+
+import json
+import subprocess
+import sys
+
+users = {}
+
+def get_files(grep_output):
+    paths = []
+    for line in grep_output.split('\n'):
+        if 'maintainers' in line:
+            result = line.split(':')
+            if result:
+                path = result[0]
+                if 'default.nix' in path:
+                    paths.append(path.replace('default.nix', '*'))
+    return set(paths)
+
+def split(text):
+    lines = []
+    current_line = b''
+
+    for c in text:
+        if chr(c) == b'\n':
+            lines.append(current_line)
+        else:
+            current_line += c
+    return lines
+
+if __name__ == '__main__':
+    with open(sys.argv[1]) as f:
+        maintainers = f.readlines()
+
+    for maintainer in maintainers:
+        maintainer = maintainer.strip(' \n')
+        output = subprocess.check_output(
+                        ['git',
+                         '-C', sys.argv[2],
+                         '--no-pager',
+                         'grep',
+                         maintainer])
+        paths = get_files(output.decode('utf-8'))
+
+        if paths:
+            users[maintainer] = list(paths)
+
+    with open('maintainer-paths.json', 'w') as f:
+        json.dump(users, f, sort_keys=True, indent=4, separators=(',', ': '))
